@@ -30,10 +30,13 @@ INST_PAT = re.compile(
 def nse_session():
     s = requests.Session()
     s.headers.update(HEADERS)
-    try:
-        s.get("https://www.nseindia.com", timeout=10)
-    except Exception:
-        pass
+    s.headers.update({"Sec-Fetch-Dest": "empty", "Sec-Fetch-Mode": "cors",
+                      "Sec-Fetch-Site": "same-origin", "X-Requested-With": "XMLHttpRequest"})
+    for u in ("https://www.nseindia.com", "https://www.nseindia.com/reports/fii-dii"):
+        try:
+            s.get(u, timeout=10)
+        except Exception:
+            pass
     return s
 
 
@@ -45,11 +48,27 @@ def _num(x):
 
 
 def get_fii_dii(s):
-    """Latest daily FII/FPI and DII cash-market flow, Rs crore."""
-    r = s.get("https://www.nseindia.com/api/fiidiiTradeReact", timeout=15)
-    r.raise_for_status()
+    """Latest daily FII/FPI and DII cash-market flow, Rs crore (3 tries)."""
+    import time
+    last = None
+    for attempt in range(3):
+        try:
+            r = s.get("https://www.nseindia.com/api/fiidiiTradeReact", timeout=15)
+            r.raise_for_status()
+            return _parse_fii_dii(r.json())
+        except Exception as e:
+            last = e
+            time.sleep(1.5)
+            try:
+                s.get("https://www.nseindia.com/reports/fii-dii", timeout=10)
+            except Exception:
+                pass
+    raise last
+
+
+def _parse_fii_dii(rows):
     out = {}
-    for x in r.json():
+    for x in rows:
         cat = str(x.get("category", "")).upper()
         key = "fii" if "FII" in cat or "FPI" in cat else "dii" if "DII" in cat else None
         if not key:
@@ -230,7 +249,14 @@ def run_scan(capital=200000, risk_pct=1.0, min_turnover_cr=20.0, top_n=10,
     try:
         market = get_fii_dii(s)
     except Exception as e:
-        notes.append("FII/DII fetch fail: %s" % str(e)[:80])
+        notes.append("FII/DII live fetch fail (NSE ne block kiya): %s" % str(e)[:60])
+        if hist is not None and len(hist):
+            last = hist.dropna(subset=["fii_net", "dii_net"]).tail(1)
+            if len(last):
+                market = {k: (last.iloc[0][k] if k in last.columns else np.nan) for k in
+                          ("date", "fii_buy", "fii_sell", "fii_net", "dii_buy", "dii_sell", "dii_net")}
+                market["fii_net"], market["dii_net"] = float(market["fii_net"]), float(market["dii_net"])
+                notes.append("Last saved FII/DII data use hua (date %s)" % market["date"])
     if manual_fii is not None and manual_dii is not None:
         market = {"date": dt.date.today().strftime("%Y-%m-%d"), "fii_net": float(manual_fii),
                   "dii_net": float(manual_dii), "fii_buy": np.nan, "fii_sell": np.nan,

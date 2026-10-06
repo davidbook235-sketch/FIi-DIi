@@ -32,6 +32,9 @@ proxy bulk/block deals hain (client ke naam se pehchaan, approx). Ye research to
 - Data NSE par kabhi late aata hai; us din 7:30 PM ke baad "Run workflow" dabao.
 
 ## Agar kuch fail ho
+- **403 Forbidden (FII/DII)**: NSE Streamlit ke server ko block karta hai. App ab last saved data
+  (GitHub Action se bana `data/fii_dii_history.csv`) use karta hai. Isliye Actions > Run workflow
+  ek baar chalao taaki history ban jaye. Phir bhi na mile to sidebar me manual daalo.
 - NSE kabhi cloud/foreign IP ko block karta hai. App me notes me "fail" dikhega. Tab sidebar me
   FII/DII manual daalo, ya Actions ka dobara run karo (kabhi 2-3 try me chal jata hai).
 - yfinance fail ho to trend score skip hota hai aur picks kam milenge.

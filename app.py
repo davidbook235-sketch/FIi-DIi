@@ -17,7 +17,7 @@ with st.sidebar:
     capital = st.number_input("Capital (Rs)", 10000, 100000000, 200000, 10000)
     risk = st.slider("Risk per trade %", 0.25, 2.0, 1.0, 0.25)
     min_turn = st.slider("Min turnover (Rs cr)", 5, 200, 20)
-    st.caption("NSE fetch fail ho to FII/DII manual daalo (Rs cr):")
+    st.caption("NSE block kare to FII/DII manual daalo (Rs cr, jaise -1500 aur 2100):")
     mf = st.text_input("FII net", "")
     md = st.text_input("DII net", "")
 
